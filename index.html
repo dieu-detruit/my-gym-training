@@ -35,17 +35,28 @@
 
       <div id="exercise-list" class="exercise-list"></div>
 
+      <section class="finish-panel">
+        <p class="finish-kicker">SESSION ARCHIVE</p>
+        <h2>終わったら、そのままGitHubへ。</h2>
+        <p>完了したセットを1つのJSONにまとめて保存します。次回からChatGPTが直接読めます。</p>
+        <button id="save-github" class="button finish-button">WORKOUT COMPLETE →</button>
+      </section>
+
       <section class="footer-actions">
-        <button id="copy-json" class="button ghost">COPY FOR CHATGPT</button>
-        <button id="download-csv" class="button ghost">EXPORT CSV</button>
-        <details class="sync-panel">
-          <summary>GOOGLE SHEETS</summary>
+        <details id="github-settings" class="sync-panel">
+          <summary>GITHUB CONNECTION</summary>
           <label>
-            <span>Apps Script WebアプリURL</span>
-            <input id="endpoint" type="url" placeholder="https://script.google.com/macros/s/.../exec" />
+            <span>Fine-grained personal access token</span>
+            <input id="github-token" type="password" autocomplete="off" placeholder="github_pat_..." />
           </label>
-          <p>一度設定すれば、各セットの「DONE」で自動送信します。</p>
+          <div class="settings-actions">
+            <button id="save-token" class="button compact">SAVE TOKEN</button>
+            <button id="clear-token" class="button compact danger">CLEAR</button>
+          </div>
+          <p>保存先: <code>dieu-detruit/my-gym-training</code>。必要権限はこのリポジトリの Contents: Read and write のみです。トークンはこの端末内だけに保存されます。</p>
         </details>
+        <button id="copy-json" class="button ghost">COPY FOR CHATGPT</button>
+        <button id="download-json" class="button ghost">DOWNLOAD JSON</button>
       </section>
 
       <p id="status" class="status">入力内容はこの端末に自動保存されます。</p>
