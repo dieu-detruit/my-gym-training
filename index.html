@@ -3,43 +3,49 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#111827" />
-    <title>腕トレ記録</title>
+    <meta name="theme-color" content="#050816" />
+    <title>ARM DAY</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <main class="page">
       <header class="hero">
-        <p class="eyebrow">30分・腕を太くする Day A</p>
-        <div class="hero-row">
-          <div>
-            <h1>腕トレ記録</h1>
-            <p id="progress">0 / 12 セット完了</p>
-          </div>
-          <button id="new-session" class="button secondary">新しい日</button>
+        <div>
+          <p class="eyebrow">30 MIN · ARM HYPERTROPHY</p>
+          <h1>ARM DAY</h1>
+          <p class="subhead">Day A · 二頭 / 三頭</p>
+        </div>
+        <div class="progress-ring" aria-label="進捗">
+          <span id="progress-count">0</span>
+          <small>/12</small>
         </div>
       </header>
 
-      <section class="panel settings">
-        <label>
-          <span>日付</span>
-          <input id="date" type="date" />
-        </label>
-        <details>
-          <summary>Google Sheets 同期設定</summary>
-          <label class="endpoint-field">
-            <span>Apps Script WebアプリURL</span>
-            <input id="endpoint" type="url" placeholder="https://script.google.com/macros/s/.../exec" />
-          </label>
-          <p class="hint">未設定でも端末内には自動保存されます。</p>
-        </details>
+      <section class="dashboard">
+        <div>
+          <span class="metric-label">TODAY</span>
+          <input id="date" class="date-input" type="date" />
+        </div>
+        <div>
+          <span class="metric-label">VOLUME</span>
+          <strong id="volume">0 kg</strong>
+        </div>
+        <button id="new-session" class="icon-button">RESET</button>
       </section>
 
       <div id="exercise-list" class="exercise-list"></div>
 
-      <section class="actions">
-        <button id="copy-json" class="button primary">ChatGPT向けJSONをコピー</button>
-        <button id="download-csv" class="button secondary">CSVを保存</button>
+      <section class="footer-actions">
+        <button id="copy-json" class="button ghost">COPY FOR CHATGPT</button>
+        <button id="download-csv" class="button ghost">EXPORT CSV</button>
+        <details class="sync-panel">
+          <summary>GOOGLE SHEETS</summary>
+          <label>
+            <span>Apps Script WebアプリURL</span>
+            <input id="endpoint" type="url" placeholder="https://script.google.com/macros/s/.../exec" />
+          </label>
+          <p>一度設定すれば、各セットの「DONE」で自動送信します。</p>
+        </details>
       </section>
 
       <p id="status" class="status">入力内容はこの端末に自動保存されます。</p>
