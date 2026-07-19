@@ -1,15 +1,26 @@
-const STORAGE_KEY = "my-gym-training-v1";
+const STORAGE_KEY = "my-gym-training-v2";
 
 const exercises = [
-  { id: "ez-bar-curl", name: "EZバーカール", target: "8〜12回 × 3セット", guide: "立ったまま。肩幅の外側グリップ。反動なしで下ろしをゆっくり。", weight: 20 },
-  { id: "overhead-extension", name: "ケーブル・オーバーヘッドエクステンション", target: "10〜12回 × 3セット", guide: "片側のケーブルにロープを付け、背を向けて斜め前上へ伸ばす。", weight: 10 },
-  { id: "hammer-curl", name: "ハンマーカール", target: "10〜15回 × 3セット", guide: "親指を上にして肘を固定。重量は片手分を記録。", weight: 7 },
-  { id: "rope-pushdown", name: "ローププレスダウン", target: "10〜15回 × 3セット", guide: "肘を脇腹に固定し、肘から先だけを伸ばす。", weight: 12.5 },
+  { id: "ez-bar-curl", name: "EZ BAR CURL", jp: "EZバーカール", target: "3 SETS", guide: "反動なし。下ろしを2〜3秒。", weight: 20, reps: 10 },
+  { id: "overhead-extension", name: "OVERHEAD EXTENSION", jp: "ケーブル・オーバーヘッド", target: "3 SETS", guide: "ロープを斜め前上へ。肘は頭の横。", weight: 10, reps: 12 },
+  { id: "hammer-curl", name: "HAMMER CURL", jp: "ハンマーカール", target: "3 SETS", guide: "親指を上。重量は片手分。", weight: 7, reps: 12 },
+  { id: "rope-pushdown", name: "ROPE PUSHDOWN", jp: "ローププレスダウン", target: "3 SETS", guide: "肘を脇腹に固定。背中で押さない。", weight: 12.5, reps: 12 },
 ];
 
 const today = () => new Date().toLocaleDateString("sv-SE");
 const initialState = () => ({
-  date: today(), endpoint: "", exercises: exercises.map((exercise) => ({ ...exercise, sets: Array.from({ length: 3 }, () => ({ weight: String(exercise.weight), reps: "", note: "", synced: false })) })),
+  date: today(),
+  endpoint: "",
+  exercises: exercises.map((exercise) => ({
+    ...exercise,
+    sets: Array.from({ length: 3 }, () => ({
+      weight: String(exercise.weight),
+      reps: String(exercise.reps),
+      note: "",
+      completed: false,
+      synced: false,
+    })),
+  })),
 });
 
 let state = load();
@@ -19,87 +30,191 @@ const endpointInput = document.querySelector("#endpoint");
 const status = document.querySelector("#status");
 
 function load() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || initialState(); }
-  catch { return initialState(); }
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    return saved || initialState();
+  } catch {
+    return initialState();
+  }
 }
 
-function save(message = "入力内容を保存しました。") {
+function save(message = "保存しました") {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   status.textContent = message;
-  renderProgress();
+  renderMetrics();
 }
 
-function renderProgress() {
-  const done = state.exercises.flatMap((exercise) => exercise.sets).filter((set) => set.reps).length;
-  document.querySelector("#progress").textContent = `${done} / 12 セット完了`;
+function renderMetrics() {
+  const sets = state.exercises.flatMap((exercise) => exercise.sets);
+  const done = sets.filter((set) => set.completed).length;
+  const volume = state.exercises.reduce(
+    (total, exercise) => total + exercise.sets.reduce(
+      (exerciseTotal, set) => exerciseTotal + (set.completed ? Number(set.weight) * Number(set.reps) : 0),
+      0,
+    ),
+    0,
+  );
+  document.querySelector("#progress-count").textContent = String(done);
+  document.querySelector("#volume").textContent = `${Math.round(volume).toLocaleString()} kg`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }
 
 function render() {
   dateInput.value = state.date;
   endpointInput.value = state.endpoint;
   list.replaceChildren();
+
   state.exercises.forEach((exercise, exerciseIndex) => {
     const card = document.createElement("section");
     card.className = "exercise-card";
-    card.innerHTML = `<h2>${exercise.name}</h2><p class="target">${exercise.target}</p><p class="guide">${exercise.guide}</p><div class="set-list"></div>`;
+    card.innerHTML = `
+      <div class="exercise-head">
+        <div>
+          <p class="exercise-code">0${exerciseIndex + 1}</p>
+          <h2>${exercise.name}</h2>
+          <p class="exercise-jp">${exercise.jp}</p>
+        </div>
+        <span class="set-badge">${exercise.target}</span>
+      </div>
+      <p class="guide">${exercise.guide}</p>
+      <div class="set-list"></div>`;
+
     const setList = card.querySelector(".set-list");
     exercise.sets.forEach((set, setIndex) => {
       const row = document.createElement("div");
-      row.className = "set-row";
+      row.className = `set-row ${set.completed ? "is-complete" : ""}`;
       row.innerHTML = `
-        <strong class="set-number">#${setIndex + 1}</strong>
-        <label><span class="small-label">kg</span><input inputmode="decimal" value="${set.weight}"></label>
-        <label><span class="small-label">回数</span><input inputmode="numeric" value="${set.reps}"></label>
-        <input class="note" value="${set.note}" placeholder="メモ（反動、痛みなど）">
-        <button class="button secondary save-button ${set.synced ? "saved" : ""}">${set.synced ? "送信済み" : "保存"}</button>`;
-      const inputs = row.querySelectorAll("input");
-      ["weight", "reps", "note"].forEach((field, index) => inputs[index].addEventListener("input", (event) => {
-        set[field] = event.target.value;
-        set.synced = false;
-        save();
-      }));
-      row.querySelector("button").addEventListener("click", () => syncSet(exerciseIndex, setIndex));
+        <div class="set-number">SET <strong>${setIndex + 1}</strong></div>
+        <label class="number-field">
+          <span>KG</span>
+          <input inputmode="decimal" value="${escapeHtml(set.weight)}" aria-label="重量" />
+        </label>
+        <label class="number-field">
+          <span>REPS</span>
+          <input inputmode="numeric" value="${escapeHtml(set.reps)}" aria-label="回数" />
+        </label>
+        <button class="done-button ${set.completed ? "active" : ""}">${set.completed ? "DONE ✓" : "DONE"}</button>
+        <input class="note" value="${escapeHtml(set.note)}" placeholder="メモ" aria-label="メモ" />`;
+
+      const [weightInput, repsInput, noteInput] = row.querySelectorAll("input");
+      weightInput.addEventListener("input", (event) => updateSet(set, "weight", event.target.value));
+      repsInput.addEventListener("input", (event) => updateSet(set, "reps", event.target.value));
+      noteInput.addEventListener("input", (event) => updateSet(set, "note", event.target.value));
+      row.querySelector("button").addEventListener("click", () => toggleComplete(exerciseIndex, setIndex));
       setList.append(row);
     });
     list.append(card);
   });
-  renderProgress();
+
+  renderMetrics();
+}
+
+function updateSet(set, field, value) {
+  set[field] = value;
+  set.synced = false;
+  save();
+}
+
+async function toggleComplete(exerciseIndex, setIndex) {
+  const exercise = state.exercises[exerciseIndex];
+  const set = exercise.sets[setIndex];
+  if (!set.weight || !set.reps) {
+    save("重量と回数を入力してください");
+    return;
+  }
+
+  set.completed = !set.completed;
+  set.synced = false;
+  save(set.completed ? `${exercise.jp} SET ${setIndex + 1} 完了` : "完了を取り消しました");
+  render();
+
+  if (set.completed && state.endpoint) {
+    await syncSet(exerciseIndex, setIndex);
+  }
 }
 
 async function syncSet(exerciseIndex, setIndex) {
   const exercise = state.exercises[exerciseIndex];
   const set = exercise.sets[setIndex];
-  if (!set.weight || !set.reps) return save("重量と回数を入力してください。");
-  if (!state.endpoint) return save("Google Apps ScriptのURLを設定してください。");
-  const payload = { date: state.date, session: "Day A", exerciseId: exercise.id, exercise: exercise.name, setNumber: setIndex + 1, weightKg: Number(set.weight), reps: Number(set.reps), note: set.note, recordedAt: new Date().toISOString() };
+  const payload = {
+    date: state.date,
+    session: "Day A",
+    exerciseId: exercise.id,
+    exercise: exercise.jp,
+    setNumber: setIndex + 1,
+    weightKg: Number(set.weight),
+    reps: Number(set.reps),
+    note: set.note,
+    recordedAt: new Date().toISOString(),
+  };
+
   try {
-    await fetch(state.endpoint, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
+    await fetch(state.endpoint, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload),
+    });
     set.synced = true;
-    save(`${exercise.name} Set ${setIndex + 1} を送信しました。`);
-    render();
-  } catch { save("送信に失敗しました。URLと通信状態を確認してください。"); }
+    save(`${exercise.jp} SET ${setIndex + 1} をGoogle Sheetsへ送信`);
+  } catch {
+    save("Google Sheetsへの送信に失敗しました");
+  }
 }
 
-dateInput.addEventListener("input", (event) => { state.date = event.target.value; save(); });
-endpointInput.addEventListener("input", (event) => { state.endpoint = event.target.value; save(); });
+dateInput.addEventListener("input", (event) => {
+  state.date = event.target.value;
+  save();
+});
+
+endpointInput.addEventListener("input", (event) => {
+  state.endpoint = event.target.value.trim();
+  save(state.endpoint ? "Google Sheets接続URLを保存しました" : "接続URLを消去しました");
+});
 
 document.querySelector("#new-session").addEventListener("click", () => {
   const endpoint = state.endpoint;
   state = initialState();
   state.endpoint = endpoint;
-  save("新しいセッションを開始しました。");
+  save("新しいセッションを開始しました");
   render();
 });
 
 document.querySelector("#copy-json").addEventListener("click", async () => {
-  const data = { date: state.date, session: "Day A", exercises: state.exercises.map((exercise) => ({ name: exercise.name, sets: exercise.sets.map((set, index) => ({ set: index + 1, weightKg: Number(set.weight), reps: Number(set.reps), note: set.note })).filter((set) => set.reps) })) };
+  const data = {
+    date: state.date,
+    session: "Day A",
+    exercises: state.exercises.map((exercise) => ({
+      name: exercise.jp,
+      sets: exercise.sets
+        .map((set, index) => ({
+          set: index + 1,
+          weightKg: Number(set.weight),
+          reps: Number(set.reps),
+          note: set.note,
+          completed: set.completed,
+        }))
+        .filter((set) => set.completed),
+    })),
+  };
   await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
-  save("ChatGPT向けJSONをコピーしました。");
+  save("ChatGPT向けJSONをコピーしました");
 });
 
 document.querySelector("#download-csv").addEventListener("click", () => {
   const rows = [["date", "session", "exercise", "set", "weight_kg", "reps", "note"]];
-  state.exercises.forEach((exercise) => exercise.sets.forEach((set, index) => { if (set.reps) rows.push([state.date, "Day A", exercise.name, String(index + 1), set.weight, set.reps, set.note]); }));
+  state.exercises.forEach((exercise) => exercise.sets.forEach((set, index) => {
+    if (set.completed) {
+      rows.push([state.date, "Day A", exercise.jp, String(index + 1), set.weight, set.reps, set.note]);
+    }
+  }));
   const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\n");
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
   const link = document.createElement("a");
