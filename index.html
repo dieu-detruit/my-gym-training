@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#111827" />
+    <title>腕トレ記録</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <p class="eyebrow">30分・腕を太くする Day A</p>
+        <div class="hero-row">
+          <div>
+            <h1>腕トレ記録</h1>
+            <p id="progress">0 / 12 セット完了</p>
+          </div>
+          <button id="new-session" class="button secondary">新しい日</button>
+        </div>
+      </header>
+
+      <section class="panel settings">
+        <label>
+          <span>日付</span>
+          <input id="date" type="date" />
+        </label>
+        <details>
+          <summary>Google Sheets 同期設定</summary>
+          <label class="endpoint-field">
+            <span>Apps Script WebアプリURL</span>
+            <input id="endpoint" type="url" placeholder="https://script.google.com/macros/s/.../exec" />
+          </label>
+          <p class="hint">未設定でも端末内には自動保存されます。</p>
+        </details>
+      </section>
+
+      <div id="exercise-list" class="exercise-list"></div>
+
+      <section class="actions">
+        <button id="copy-json" class="button primary">ChatGPT向けJSONをコピー</button>
+        <button id="download-csv" class="button secondary">CSVを保存</button>
+      </section>
+
+      <p id="status" class="status">入力内容はこの端末に自動保存されます。</p>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
