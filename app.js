@@ -1,4 +1,7 @@
-const STORAGE_KEY = "my-gym-training-v2";
+const STORAGE_KEY = "my-gym-training-v3";
+const TOKEN_KEY = "my-gym-training-github-token";
+const REPOSITORY = "dieu-detruit/my-gym-training";
+const TARGET_BRANCH = "main";
 
 const exercises = [
   { id: "ez-bar-curl", name: "EZ BAR CURL", jp: "EZバーカール", target: "3 SETS", guide: "反動なし。下ろしを2〜3秒。", weight: 20, reps: 10 },
@@ -8,9 +11,11 @@ const exercises = [
 ];
 
 const today = () => new Date().toLocaleDateString("sv-SE");
+
 const initialState = () => ({
   date: today(),
-  endpoint: "",
+  startedAt: new Date().toISOString(),
+  lastSavedPath: "",
   exercises: exercises.map((exercise) => ({
     ...exercise,
     sets: Array.from({ length: 3 }, () => ({
@@ -18,7 +23,6 @@ const initialState = () => ({
       reps: String(exercise.reps),
       note: "",
       completed: false,
-      synced: false,
     })),
   })),
 });
@@ -26,8 +30,9 @@ const initialState = () => ({
 let state = load();
 const list = document.querySelector("#exercise-list");
 const dateInput = document.querySelector("#date");
-const endpointInput = document.querySelector("#endpoint");
 const status = document.querySelector("#status");
+const settings = document.querySelector("#github-settings");
+const tokenInput = document.querySelector("#github-token");
 
 function load() {
   try {
@@ -44,18 +49,24 @@ function save(message = "保存しました") {
   renderMetrics();
 }
 
-function renderMetrics() {
-  const sets = state.exercises.flatMap((exercise) => exercise.sets);
-  const done = sets.filter((set) => set.completed).length;
-  const volume = state.exercises.reduce(
-    (total, exercise) => total + exercise.sets.reduce(
-      (exerciseTotal, set) => exerciseTotal + (set.completed ? Number(set.weight) * Number(set.reps) : 0),
-      0,
-    ),
+function completedSets() {
+  return state.exercises.flatMap((exercise) =>
+    exercise.sets
+      .map((set, index) => ({ exercise, set, setNumber: index + 1 }))
+      .filter(({ set }) => set.completed),
+  );
+}
+
+function totalVolume() {
+  return completedSets().reduce(
+    (total, { set }) => total + Number(set.weight) * Number(set.reps),
     0,
   );
-  document.querySelector("#progress-count").textContent = String(done);
-  document.querySelector("#volume").textContent = `${Math.round(volume).toLocaleString()} kg`;
+}
+
+function renderMetrics() {
+  document.querySelector("#progress-count").textContent = String(completedSets().length);
+  document.querySelector("#volume").textContent = `${Math.round(totalVolume()).toLocaleString()} kg`;
 }
 
 function escapeHtml(value) {
@@ -68,7 +79,6 @@ function escapeHtml(value) {
 
 function render() {
   dateInput.value = state.date;
-  endpointInput.value = state.endpoint;
   list.replaceChildren();
 
   state.exercises.forEach((exercise, exerciseIndex) => {
@@ -118,11 +128,11 @@ function render() {
 
 function updateSet(set, field, value) {
   set[field] = value;
-  set.synced = false;
+  state.lastSavedPath = "";
   save();
 }
 
-async function toggleComplete(exerciseIndex, setIndex) {
+function toggleComplete(exerciseIndex, setIndex) {
   const exercise = state.exercises[exerciseIndex];
   const set = exercise.sets[setIndex];
   if (!set.weight || !set.reps) {
@@ -131,71 +141,32 @@ async function toggleComplete(exerciseIndex, setIndex) {
   }
 
   set.completed = !set.completed;
-  set.synced = false;
+  state.lastSavedPath = "";
   save(set.completed ? `${exercise.jp} SET ${setIndex + 1} 完了` : "完了を取り消しました");
   render();
-
-  if (set.completed && state.endpoint) {
-    await syncSet(exerciseIndex, setIndex);
-  }
 }
 
-async function syncSet(exerciseIndex, setIndex) {
-  const exercise = state.exercises[exerciseIndex];
-  const set = exercise.sets[setIndex];
-  const payload = {
+function workoutData() {
+  const finishedAt = new Date().toISOString();
+  const completed = completedSets();
+  return {
+    schemaVersion: 1,
     date: state.date,
     session: "Day A",
-    exerciseId: exercise.id,
-    exercise: exercise.jp,
-    setNumber: setIndex + 1,
-    weightKg: Number(set.weight),
-    reps: Number(set.reps),
-    note: set.note,
-    recordedAt: new Date().toISOString(),
-  };
-
-  try {
-    await fetch(state.endpoint, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload),
-    });
-    set.synced = true;
-    save(`${exercise.jp} SET ${setIndex + 1} をGoogle Sheetsへ送信`);
-  } catch {
-    save("Google Sheetsへの送信に失敗しました");
-  }
-}
-
-dateInput.addEventListener("input", (event) => {
-  state.date = event.target.value;
-  save();
-});
-
-endpointInput.addEventListener("input", (event) => {
-  state.endpoint = event.target.value.trim();
-  save(state.endpoint ? "Google Sheets接続URLを保存しました" : "接続URLを消去しました");
-});
-
-document.querySelector("#new-session").addEventListener("click", () => {
-  const endpoint = state.endpoint;
-  state = initialState();
-  state.endpoint = endpoint;
-  save("新しいセッションを開始しました");
-  render();
-});
-
-document.querySelector("#copy-json").addEventListener("click", async () => {
-  const data = {
-    date: state.date,
-    session: "Day A",
+    focus: "arm hypertrophy",
+    startedAt: state.startedAt,
+    finishedAt,
+    summary: {
+      completedSets: completed.length,
+      plannedSets: 12,
+      totalVolumeKg: Math.round(totalVolume() * 10) / 10,
+    },
     exercises: state.exercises.map((exercise) => ({
+      id: exercise.id,
       name: exercise.jp,
       sets: exercise.sets
         .map((set, index) => ({
-          set: index + 1,
+          setNumber: index + 1,
           weightKg: Number(set.weight),
           reps: Number(set.reps),
           note: set.note,
@@ -204,24 +175,125 @@ document.querySelector("#copy-json").addEventListener("click", async () => {
         .filter((set) => set.completed),
     })),
   };
-  await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+}
+
+function toBase64(text) {
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function archivePath() {
+  const timestamp = new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
+  return `data/workouts/${state.date}/session-${timestamp}.json`;
+}
+
+async function saveToGitHub() {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) {
+    settings.open = true;
+    tokenInput.focus();
+    save("最初にGitHubトークンを設定してください");
+    return;
+  }
+
+  const data = workoutData();
+  if (data.summary.completedSets === 0) {
+    save("完了したセットがありません");
+    return;
+  }
+
+  const path = archivePath();
+  const button = document.querySelector("#save-github");
+  button.disabled = true;
+  button.textContent = "SAVING...";
+  save("GitHubへ保存しています...");
+
+  try {
+    const response = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${path}`, {
+      method: "PUT",
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      body: JSON.stringify({
+        message: `Log arm workout ${state.date}`,
+        content: toBase64(`${JSON.stringify(data, null, 2)}\n`),
+        branch: TARGET_BRANCH,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || `GitHub API error: ${response.status}`);
+    }
+
+    state.lastSavedPath = path;
+    save(`保存完了: ${path}`);
+    button.textContent = "SAVED ✓";
+  } catch (error) {
+    console.error(error);
+    save(`保存失敗: ${error.message}`);
+    button.textContent = "RETRY SAVE";
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function downloadJson() {
+  const data = `${JSON.stringify(workoutData(), null, 2)}\n`;
+  const url = URL.createObjectURL(new Blob([data], { type: "application/json;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `arm-workout-${state.date}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+dateInput.addEventListener("input", (event) => {
+  state.date = event.target.value;
+  state.lastSavedPath = "";
+  save();
+});
+
+document.querySelector("#new-session").addEventListener("click", () => {
+  state = initialState();
+  save("新しいセッションを開始しました");
+  document.querySelector("#save-github").textContent = "WORKOUT COMPLETE →";
+  render();
+});
+
+document.querySelector("#save-token").addEventListener("click", () => {
+  const token = tokenInput.value.trim();
+  if (!token) {
+    save("トークンを入力してください");
+    return;
+  }
+  localStorage.setItem(TOKEN_KEY, token);
+  tokenInput.value = "";
+  tokenInput.placeholder = "保存済み";
+  settings.open = false;
+  save("GitHubトークンをこの端末に保存しました");
+});
+
+document.querySelector("#clear-token").addEventListener("click", () => {
+  localStorage.removeItem(TOKEN_KEY);
+  tokenInput.value = "";
+  tokenInput.placeholder = "github_pat_...";
+  save("GitHubトークンを削除しました");
+});
+
+document.querySelector("#save-github").addEventListener("click", saveToGitHub);
+
+document.querySelector("#copy-json").addEventListener("click", async () => {
+  await navigator.clipboard.writeText(JSON.stringify(workoutData(), null, 2));
   save("ChatGPT向けJSONをコピーしました");
 });
 
-document.querySelector("#download-csv").addEventListener("click", () => {
-  const rows = [["date", "session", "exercise", "set", "weight_kg", "reps", "note"]];
-  state.exercises.forEach((exercise) => exercise.sets.forEach((set, index) => {
-    if (set.completed) {
-      rows.push([state.date, "Day A", exercise.jp, String(index + 1), set.weight, set.reps, set.note]);
-    }
-  }));
-  const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\n");
-  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `arm-workout-${state.date}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
-});
+document.querySelector("#download-json").addEventListener("click", downloadJson);
 
+if (localStorage.getItem(TOKEN_KEY)) tokenInput.placeholder = "保存済み";
 render();
