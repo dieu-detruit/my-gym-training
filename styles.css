@@ -1,0 +1,80 @@
+:root {
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f3f4f6;
+  color: #111827;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: #f3f4f6; }
+button, input { font: inherit; }
+
+.page {
+  width: min(100%, 760px);
+  margin: 0 auto;
+  padding: 18px 14px 64px;
+}
+
+.hero { margin-bottom: 16px; }
+.eyebrow { margin: 0 0 4px; color: #6b7280; font-size: 13px; }
+.hero-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+h1 { margin: 0 0 6px; font-size: 30px; line-height: 1.1; }
+#progress { margin: 0; color: #4b5563; }
+
+.panel, .exercise-card {
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 0.05);
+}
+
+.settings { padding: 14px; margin-bottom: 14px; display: grid; gap: 12px; }
+label > span, summary { display: block; font-size: 13px; font-weight: 700; margin-bottom: 5px; }
+input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #9ca3af;
+  border-radius: 10px;
+  background: #fff;
+  padding: 11px 12px;
+  font-size: 16px;
+}
+summary { cursor: pointer; }
+.endpoint-field { display: block; margin-top: 12px; }
+.hint { margin: 7px 0 0; font-size: 12px; color: #6b7280; }
+
+.exercise-list { display: grid; gap: 14px; }
+.exercise-card { padding: 14px; }
+.exercise-card h2 { margin: 0 0 4px; font-size: 20px; }
+.target { margin: 0 0 4px; font-weight: 800; }
+.guide { margin: 0 0 12px; color: #4b5563; font-size: 13px; line-height: 1.5; }
+.set-list { display: grid; gap: 10px; }
+.set-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: end;
+}
+.set-number { padding-bottom: 11px; font-weight: 800; }
+.small-label { font-size: 12px; color: #6b7280; margin-bottom: 3px; }
+.note { grid-column: 2 / 3; }
+.save-button { grid-column: 3 / 4; }
+
+.button {
+  border: 1px solid #9ca3af;
+  border-radius: 10px;
+  padding: 11px 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.primary { background: #111827; color: white; border-color: #111827; }
+.secondary { background: white; color: #111827; }
+.saved { background: #ecfdf5; border-color: #10b981; color: #047857; }
+
+.actions { display: grid; gap: 10px; margin-top: 16px; }
+.status { margin: 14px 0 0; padding: 11px 12px; border-radius: 10px; background: #e5e7eb; font-size: 13px; }
+
+@media (max-width: 430px) {
+  .hero-row { align-items: center; }
+  .hero-row .button { white-space: nowrap; }
+}
